@@ -16,4 +16,8 @@ export const router = createBrowserRouter([
       { path: "artwork/:id", Component: ArtworkDetail },
     ],
   },
-]);
+],
+{
+  basename: "/sua-portfolio/",
+}
+);
