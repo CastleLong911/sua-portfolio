@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Upload as UploadIcon } from "lucide-react";
+import { projectId, publicAnonKey } from "/utils/supabase/info";
 
 export default function Upload() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,6 +23,7 @@ export default function Upload() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -27,16 +32,62 @@ export default function Upload() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 샘플 업로드 (실제로는 백엔드에 저장 필요)
-    alert("작품이 업로드되었습니다! (샘플 모드)");
-    navigate("/");
+    setError("");
+    setLoading(true);
+
+    if (!imageFile) {
+      setError("이미지를 선택해주세요.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("year", year.toString());
+      formData.append("image", imageFile);
+
+      const accessToken = localStorage.getItem("accessToken");
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-81a36db4/artworks`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "업로드에 실패했습니다.");
+        setLoading(false);
+        return;
+      }
+
+      navigate("/");
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError("업로드 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <h1 className="text-3xl mb-8">Upload Artwork</h1>
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Image Upload */}
         <div>
@@ -122,14 +173,16 @@ export default function Upload() {
         <div className="flex gap-4">
           <button
             type="submit"
-            className="flex-1 bg-black text-white py-3 hover:bg-gray-800 transition"
+            disabled={loading}
+            className="flex-1 bg-black text-white py-3 hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Upload
+            {loading ? "업로드 중..." : "Upload"}
           </button>
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="px-8 py-3 border border-gray-300 hover:bg-gray-50 transition"
+            disabled={loading}
+            className="px-8 py-3 border border-gray-300 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>

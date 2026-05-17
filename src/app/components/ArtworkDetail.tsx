@@ -1,12 +1,79 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { sampleArtworks } from "../data/sampleData";
 import { ArrowLeft } from "lucide-react";
+import { projectId, publicAnonKey } from "/utils/supabase/info";
+
+interface Artwork {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  year: number;
+  createdAt: string;
+}
 
 export default function ArtworkDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [artwork, setArtwork] = useState<Artwork | null>(null);
+  const [relatedArtworks, setRelatedArtworks] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const artwork = sampleArtworks.find((a) => a.id === id);
+  useEffect(() => {
+    if (id) {
+      fetchArtwork(id);
+    }
+  }, [id]);
+
+  const fetchArtwork = async (artworkId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-81a36db4/artwork/${artworkId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${publicAnonKey}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setArtwork(data);
+        fetchRelatedArtworks(data.year);
+      }
+    } catch (error) {
+      console.error("Failed to fetch artwork:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRelatedArtworks = async (year: number) => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-81a36db4/artworks/${year}`,
+        {
+          headers: {
+            Authorization: `Bearer ${publicAnonKey}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setRelatedArtworks(data.filter((a: Artwork) => a.id !== id).slice(0, 3));
+      }
+    } catch (error) {
+      console.error("Failed to fetch related artworks:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+        <p className="text-gray-500">로딩 중...</p>
+      </div>
+    );
+  }
 
   if (!artwork) {
     return (
@@ -57,13 +124,11 @@ export default function ArtworkDetail() {
       </div>
 
       {/* Related Artworks */}
-      <div className="mt-20 border-t border-gray-200 pt-12">
-        <h2 className="text-2xl mb-8">Other Works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {sampleArtworks
-            .filter((a) => a.id !== id)
-            .slice(0, 3)
-            .map((relatedArtwork) => (
+      {relatedArtworks.length > 0 && (
+        <div className="mt-20 border-t border-gray-200 pt-12">
+          <h2 className="text-2xl mb-8">Other Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {relatedArtworks.map((relatedArtwork) => (
               <Link
                 key={relatedArtwork.id}
                 to={`/artwork/${relatedArtwork.id}`}
@@ -80,8 +145,9 @@ export default function ArtworkDetail() {
                 <p className="text-sm text-gray-500">{relatedArtwork.year}</p>
               </Link>
             ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

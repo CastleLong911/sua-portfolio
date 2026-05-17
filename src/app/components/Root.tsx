@@ -1,6 +1,7 @@
 import { Outlet, Link, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { LogOut } from "lucide-react";
+import { projectId, publicAnonKey } from "/utils/supabase/info";
 
 export default function Root() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -11,10 +12,28 @@ export default function Root() {
     setIsLoggedIn(loggedIn);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
-    setIsLoggedIn(false);
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-81a36db4/logout`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("isLoggedIn");
+      setIsLoggedIn(false);
+      navigate("/");
+    }
   };
 
   return (

@@ -18,6 +18,6 @@ export const router = createBrowserRouter([
   },
 ],
 {
-  basename: "/sua-portfolio/",
+  basename: "/sua-portfolio",
 }
 );
